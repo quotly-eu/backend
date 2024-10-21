@@ -1,0 +1,2 @@
+API_NAME = "Quotly REST-API"
+VERSION = "0.1.0"
