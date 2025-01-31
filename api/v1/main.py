@@ -3,9 +3,7 @@ from __init__ import VERSION, API_NAME
 from fastapi import APIRouter, FastAPI
 
 # Routes import
-from api.v1.models.users import User
-from api.v1.routers import quotes, users
-from database.main import DatabaseHandler
+from api.v1.routers import quotes, roles, users
 
 # FastAPI instance
 tags_metadata = [
@@ -15,7 +13,11 @@ tags_metadata = [
   },
   {
     "name": "Users",
-    "description": "Endpoints related to quotes"
+    "description": "Endpoints related to users"
+  },
+  {
+    "name": "Roles",
+    "description": "Endpoints related to roles"
   }
 ]
 
@@ -26,17 +28,8 @@ app = FastAPI(
 )
 router = APIRouter(prefix="/v1")
 
-# Root endpoints
-@router.get("/")
-def root():
-  """
-  This is the root path of the API
-  """
-  db = DatabaseHandler()
-  result = db.session.exec(sqlmodel.select(User)).all()
-  return result
-
 # Include routers
 router.include_router(quotes.router)
 router.include_router(users.router)
+router.include_router(roles.router)
 app.include_router(router)

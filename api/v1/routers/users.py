@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path, Query
 from sqlmodel import or_, select
-from api.v1.models.quotes import Quote, QuoteReaction, SavedQuote
-from api.v1.models.users import User, UserRole
+from api.v1.models.models import Quote, QuoteReaction, SavedQuote
+from api.v1.models.models import Role, User, UserRole
 from database.main import DatabaseHandler
 
 router = APIRouter(
@@ -16,7 +16,7 @@ def get_users(
     description="The page number to retrieve starting from 1"
   ),
   limit: int = Query(
-    default=5,
+    default=None,
     description="The number of items to retrieve"
   ),
   search: str = Query(
@@ -34,8 +34,9 @@ def get_users(
   if search:
     query = query.filter(User.display_name.like(f"%{search}%"))
   
-  
-  return db.session.exec(query).all()
+  result = db.session.exec(query).all()
+
+  return result
 
 @router.get(
   "/{id}", 
@@ -69,18 +70,18 @@ def get_user_reactions(
 
 @router.get(
   "/{id}/roles",
-  response_model=list[UserRole]
+  response_model=list[Role]
 )
 def get_user_roles(
   id: int = Path(
     default=...,
     description="The user identifier"
   )
-) -> list[UserRole]:
+) -> list[Role]:
   db = DatabaseHandler()
 
-  result = db.session.exec(select(UserRole).where(UserRole.user_id == id)).all()
-  return result
+  user_roles = db.session.exec(select(UserRole).where(UserRole.user_id == id)).all()
+  return [user_role.role for user_role in user_roles] 
 
 @router.get(
   "/{id}/saved-quotes",
