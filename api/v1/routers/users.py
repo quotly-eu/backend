@@ -1,0 +1,100 @@
+from fastapi import APIRouter, HTTPException, Path, Query
+from sqlmodel import or_, select
+from api.v1.models.quotes import Quote, QuoteReaction, SavedQuote
+from api.v1.models.users import User, UserRole
+from database.main import DatabaseHandler
+
+router = APIRouter(
+  prefix="/users",
+  tags=["Users"]
+)
+
+@router.get("/", response_model=list[User])
+def get_users(
+  page: int = Query(
+    default=None,
+    description="The page number to retrieve starting from 1"
+  ),
+  limit: int = Query(
+    default=5,
+    description="The number of items to retrieve"
+  ),
+  search: str = Query(
+    default=None,
+    description="The search term to filter users by"
+  )
+) -> list[User]:
+  db = DatabaseHandler()
+
+  query = select(User)
+
+  if page and limit and page > 0 and limit > 0:
+    query = query.limit(limit).offset(page-1*limit)
+  
+  if search:
+    query = query.filter(User.display_name.like(f"%{search}%"))
+  
+  
+  return db.session.exec(query).all()
+
+@router.get(
+  "/{id}", 
+  response_model=User,
+)
+def get_user(id: int = Path(
+  default=...,
+  description="The user or discord user identifier"
+)) -> User:
+  db = DatabaseHandler()
+
+  result = db.session.exec(select(User).where(or_(User.user_id == id, User.discord_id == id))).first()
+  if not result:
+    raise HTTPException(status_code=404, detail="User not found")
+  return result
+
+@router.get(
+  "/{id}/reactions",
+  response_model=list[QuoteReaction]
+)
+def get_user_reactions(
+  id: int = Path(
+    default=...,
+    description="The user identifier"
+  )
+) -> list[QuoteReaction]:
+  db = DatabaseHandler()
+
+  result = db.session.exec(select(QuoteReaction).where(QuoteReaction.user_id == id)).all()
+  return result
+
+@router.get(
+  "/{id}/roles",
+  response_model=list[UserRole]
+)
+def get_user_roles(
+  id: int = Path(
+    default=...,
+    description="The user identifier"
+  )
+) -> list[UserRole]:
+  db = DatabaseHandler()
+
+  result = db.session.exec(select(UserRole).where(UserRole.user_id == id)).all()
+  return result
+
+@router.get(
+  "/{id}/saved-quotes",
+  response_model=list[Quote]
+)
+def get_user_saved_quotes(
+  id: int = Path(
+    default=...,
+    description="The user identifier"
+  )
+) -> list[Quote]:
+  db = DatabaseHandler()
+
+  saved_quotes = db.session.exec(select(SavedQuote).where(SavedQuote.user_id == id))
+
+  # Get the quotes from the relationship and return them
+  return [saved_quote.quote for saved_quote in saved_quotes.all()]
