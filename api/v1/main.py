@@ -7,8 +7,8 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 # Routes import
-from api.v1.models.users import User
-from api.v1.routers import quotes, users
+from api.v1.models.models import User
+from api.v1.routers import quotes, roles, users
 from api.v1.schemas.discord import AccessResponse, UserObject
 from database.main import DatabaseHandler
 
@@ -22,7 +22,11 @@ tags_metadata = [
   },
   {
     "name": "Users",
-    "description": "Endpoints related to quotes"
+    "description": "Endpoints related to users"
+  },
+  {
+    "name": "Roles",
+    "description": "Endpoints related to roles"
   }
 ]
 
@@ -115,4 +119,5 @@ def _receive_user_information(access_token: str) -> UserObject:
 # Include routers
 router.include_router(quotes.router)
 router.include_router(users.router)
+router.include_router(roles.router)
 app.include_router(router)
