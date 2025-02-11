@@ -4,7 +4,6 @@ from sqlmodel import Session, create_engine
 class DatabaseHandler:
     def __init__(self):
         parser = ConfigParser()
-
         parser.read("config.ini")
 
         user = parser.get("Database", "user")
