@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Literal
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Form, HTTPException, Query
 from sqlmodel import or_, select
-from api.v1.models.models import Quote, QuoteComment, QuoteReaction
+from api.v1.models.models import Quote, QuoteComment, QuoteReaction, User
+from api.v1.schemas.quotes import QuoteSchema
 from database.main import DatabaseHandler
+from discord.main import DiscordOAuthHandler
 
 router = APIRouter(
   prefix="/quotes",
@@ -12,7 +14,7 @@ router = APIRouter(
 
 @router.get(
   "/",
-  response_model=list[Quote]
+  response_model=list[QuoteSchema]
 )
 def get_quotes(
   page: int = Query(
@@ -53,9 +55,43 @@ def get_quotes(
 
   return db.session.exec(query).all()
 
+@router.post(
+    "/create",
+    response_model=QuoteSchema
+)
+def create_quote(
+  quote: str = Form(..., description="The quote markdown text"),
+  token: str = Form(..., description="The JWT token from the current user")
+): 
+  dc_handler = DiscordOAuthHandler()
+
+  access_response = dc_handler.decode_token(token)
+
+  db = DatabaseHandler()
+
+  user_info = dc_handler.receive_user_information(access_response["access_token"])
+  user = db.session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+
+  if not user:
+    raise HTTPException(404, "User is not registered!")
+  
+  quote_object = Quote(
+    quote=quote,
+    user_id=user.user_id,
+  )
+
+  db.session.add(quote_object)
+  db.session.flush()
+  
+  quote_dump = quote_object.model_dump()
+
+  db.session.commit()
+
+  return quote_dump
+
 @router.get(
   "/{id}",
-  response_model=Quote
+  response_model=QuoteSchema
 )
 def get_quote(id: int) -> Quote:
   db = DatabaseHandler()
@@ -94,7 +130,7 @@ def get_top_quotes(
     default=10,
     description="The number of top quotes to retrieve"
   )
-) -> list[Quote]:
+) -> list[QuoteSchema]:
   db = DatabaseHandler()
 
   # Get top quotes of the last 30 days sorted by QuoteReaction count

@@ -1,12 +1,20 @@
 from sqlmodel import Field, Relationship, SQLModel
 from datetime import datetime
+from humps import camel
+
+def to_camel(string):
+  return camel.case(string)
+
+class Base(SQLModel):
+  class Config:
+    alias_generator = to_camel
 
 # Define the Quotes Table
-class Quote(SQLModel, table=True):
+class Quote(Base, table=True):
   __tablename__ = "quotes"
 
   quote: str = Field(
-    default=...,
+    default=None,
     description="The quote text"
   )
   quote_id: int = Field(
@@ -20,7 +28,7 @@ class Quote(SQLModel, table=True):
     foreign_key="users.user_id"
   )
   created_at: datetime = Field(
-    default=...,
+    default=datetime.now(),
     description="The quote creation date",
   )
   changed_at: datetime | None = Field(
@@ -36,8 +44,7 @@ class Quote(SQLModel, table=True):
   reactions: list["QuoteReaction"] = Relationship(back_populates="quote")
   saved_quotes: list["SavedQuote"] = Relationship(back_populates="quote")
 
-
-class QuoteReaction(SQLModel, table=True):
+class QuoteReaction(Base, table=True):
   __tablename__ = "quote_reactions"
 
   reaction_id: int = Field(
@@ -65,7 +72,7 @@ class QuoteReaction(SQLModel, table=True):
   )
   quote: Quote = Relationship(back_populates="reactions")
 
-class SavedQuote(SQLModel, table=True):
+class SavedQuote(Base, table=True):
   __tablename__ = "saved_quotes"
 
   saved_id: int = Field(
@@ -85,7 +92,7 @@ class SavedQuote(SQLModel, table=True):
   )
   quote: Quote = Relationship(back_populates="saved_quotes")
 
-class QuoteComment(SQLModel, table=True):
+class QuoteComment(Base, table=True):
   __tablename__ = "quote_comments"
 
   comment_id: int = Field(
@@ -126,7 +133,7 @@ class QuoteComment(SQLModel, table=True):
   )
 
 
-class Role(SQLModel, table=True):
+class Role(Base, table=True):
   __tablename__ = "roles"
 
   role_id: int = Field(
@@ -147,7 +154,7 @@ class Role(SQLModel, table=True):
 
 
 # Define the Users Table
-class User(SQLModel, table=True):
+class User(Base, table=True):
   __tablename__ = "users"
 
   user_id: int = Field(
@@ -185,7 +192,7 @@ class User(SQLModel, table=True):
 
   quotes: list["Quote"] = Relationship(back_populates="user")
 
-class UserRole(SQLModel, table=True):
+class UserRole(Base, table=True):
   __tablename__ = "user_roles"
 
   id: int = Field(

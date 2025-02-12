@@ -3,6 +3,7 @@ from sqlmodel import or_, select
 from api.v1.models.models import Quote, QuoteReaction, SavedQuote
 from api.v1.models.models import Role, User, UserRole
 from database.main import DatabaseHandler
+from discord.main import DiscordOAuthHandler
 
 router = APIRouter(
   prefix="/users",
@@ -37,6 +38,26 @@ def get_users(
   result = db.session.exec(query).all()
 
   return result
+
+@router.get(
+  "/me",
+  response_model=User
+)
+def get_me(
+  token: str = Query(
+    default=...,
+    description="The JWT token"
+  )
+) -> User:
+  dc_handler = DiscordOAuthHandler()
+  db = DatabaseHandler()
+
+  access_response = dc_handler.decode_token(token)
+  
+  user_info = dc_handler.receive_user_information(access_response["access_token"])
+  user = db.session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+
+  return user.model_dump(by_alias=True)
 
 @router.get(
   "/{id}", 

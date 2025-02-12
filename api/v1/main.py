@@ -1,16 +1,16 @@
+from __init__ import VERSION, API_NAME
 from configparser import ConfigParser
 from datetime import datetime
-import requests
+import jwt
 from sqlmodel import select
-from __init__ import VERSION, API_NAME
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Routes import
 from api.v1.models.models import User
 from api.v1.routers import quotes, roles, users
-from api.v1.schemas.discord import AccessResponse, UserObject
 from database.main import DatabaseHandler
+from discord.main import DiscordOAuthHandler
 
 DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
 
@@ -48,25 +48,27 @@ router = APIRouter(prefix="/v1")
 # Root endpoints
 @router.post(
     "/authorize",
-    response_model=User
+    response_model=str,
 )
 def authorize(
-  code: str = Query(
-    default=...,
-    description="The authorization code received from Discord"
-  ),
+  code: str = Form(..., description="Authorization code received from Discord", example="1234567890"),
 ):
+  """
+  Authorize user with Discord
+
+  :return: JWT token
+  """
   parser = ConfigParser()
   parser.read("config.ini")
-  redirect_uri = parser.get("Discord", "redirect_uri")
-  client_id = parser.get("Discord", "client_id")
-  client_secret = parser.get("Discord", "client_secret")
+  key = parser.get("JWT", "key")
 
-  access_response = _receive_access_response(code, redirect_uri, client_id, client_secret)
+  dc_handler = DiscordOAuthHandler()
+
+  access_response = dc_handler.receive_access_response(code)
   if not "access_token" in access_response:
     raise HTTPException(status_code=400, detail="Invalid authorization code")
   
-  user_info = _receive_user_information(access_response["access_token"])
+  user_info = dc_handler.receive_user_information(access_response["access_token"])
   if not "id" in user_info:
     raise HTTPException(status_code=400, detail="Invalid user information")
 
@@ -75,7 +77,6 @@ def authorize(
     email_address=user_info["email"],
     display_name=user_info["global_name"],
     avatar_url=user_info["avatar"],
-    created_at=datetime.now()
   )
 
   # Check if user exists and if not, add it
@@ -86,35 +87,7 @@ def authorize(
     db.session.add(user)
     db.session.commit()
   
-  return user
-
-def _receive_access_response(
-  code: str, 
-  redirect_uri: str, 
-  client_id: str, 
-  client_secret: str
-) -> AccessResponse:
-  data = {
-    "grant_type": "authorization_code",
-    "code": code,
-    "redirect_uri": redirect_uri,
-  }
-  headers = {"Content-Type": "application/x-www-form-urlencoded"}
-  response = requests.post(
-    f"{DISCORD_API_ENDPOINT}/oauth2/token",
-    data=data,
-    headers=headers,
-    auth=(client_id, client_secret)
-  )
-  return response.json()
-
-def _receive_user_information(access_token: str) -> UserObject:
-  headers = {"Authorization": f"Bearer {access_token}"}
-  response = requests.get(
-    f"{DISCORD_API_ENDPOINT}/users/@me",
-    headers=headers
-  )
-  return response.json()
+  return jwt.encode(access_response, key)
 
 # Include routers
 router.include_router(quotes.router)
