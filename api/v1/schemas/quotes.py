@@ -42,3 +42,37 @@ class QuoteSchema(Base):
 
   user: Union[User, None] = None
   reactions: list[QuoteReaction] = []
+
+class QuoteCommentSchema(Base):
+  __tablename__ = "quote_comments"
+
+  comment_id: int = Field(
+    default=...,
+    description="The saved quote identifier",
+  )
+  parent: int | None = Field(
+    default=None,
+    description="The parent comment identifier",
+  )
+  quote_id: int = Field(
+    default=...,
+    description="The quote identifier",
+  )
+  comment: str = Field(
+    default=...,
+    description="The comment text",
+  )
+  created_at: datetime = Field(
+    default=...,
+    description="The user's creation date",
+  )
+  updated_at: datetime | None = Field(
+    default=None,
+    description="The user's last update date",
+  )
+  deleted_at: datetime | None = Field(
+    default=None,
+    description="The user's deletion date",
+  )
+
+  user: Union[User, None] = None

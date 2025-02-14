@@ -1,5 +1,4 @@
 from configparser import ConfigParser
-from sqlalchemy import NullPool
 from sqlmodel import Session, create_engine
 
 class DatabaseHandler:

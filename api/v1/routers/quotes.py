@@ -3,7 +3,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from sqlmodel import Session, func, or_, select
 from api.v1.models.models import Quote, QuoteComment, QuoteReaction, User
-from api.v1.schemas.quotes import QuoteSchema
+from api.v1.schemas.quotes import QuoteCommentSchema, QuoteSchema
 from database.main import DatabaseHandler
 from discord.main import DiscordOAuthHandler
 
@@ -139,7 +139,7 @@ def get_quote_reactions(
 
 @router.get(
   "/{id}/comments",
-  response_model=list[QuoteComment]
+  response_model=list[QuoteCommentSchema]
 )
 def get_quote_comments(
   id: int,

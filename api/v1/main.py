@@ -11,8 +11,6 @@ from api.v1.routers import quotes, roles, users
 from database.main import DatabaseHandler
 from discord.main import DiscordOAuthHandler
 
-DISCORD_API_ENDPOINT = "https://discord.com/api/v10"
-
 # FastAPI instance
 tags_metadata = [
   {
@@ -43,6 +41,7 @@ app.add_middleware(
 )
 
 router = APIRouter(prefix="/v1")
+
 
 db = DatabaseHandler()
 
