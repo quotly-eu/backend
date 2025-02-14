@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Literal
-from fastapi import APIRouter, Form, HTTPException, Query
-from sqlmodel import or_, select
+from fastapi import APIRouter, Depends, Form, HTTPException, Query
+from sqlmodel import Session, func, or_, select
 from api.v1.models.models import Quote, QuoteComment, QuoteReaction, User
 from api.v1.schemas.quotes import QuoteSchema
 from database.main import DatabaseHandler
@@ -12,8 +12,10 @@ router = APIRouter(
   tags=["Quotes"]
 )
 
+db = DatabaseHandler()
+
 @router.get(
-  "/",
+  "",
   response_model=list[QuoteSchema]
 )
 def get_quotes(
@@ -32,10 +34,9 @@ def get_quotes(
   sort: Literal["ascend", "descend"] | None = Query(
     default="ascend",
     description="The order to sort the quotes by"
-  )
+  ),
+  session: Session = Depends(db.get_session),
 ) -> list[Quote]:
-  db = DatabaseHandler()
-
   query = select(Quote)
 
   if page and limit and page > 0 and limit > 0:
@@ -53,7 +54,7 @@ def get_quotes(
   else:
     query = query.order_by(Quote.created_at)
 
-  return db.session.exec(query).all()
+  return session.exec(query).all()
 
 @router.post(
     "/create",
@@ -61,16 +62,15 @@ def get_quotes(
 )
 def create_quote(
   quote: str = Form(..., description="The quote markdown text"),
-  token: str = Form(..., description="The JWT token from the current user")
+  token: str = Form(..., description="The JWT token from the current user"),
+  session: Session = Depends(db.get_session),
 ): 
   dc_handler = DiscordOAuthHandler()
 
   access_response = dc_handler.decode_token(token)
-
-  db = DatabaseHandler()
-
+  
   user_info = dc_handler.receive_user_information(access_response["access_token"])
-  user = db.session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+  user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
 
   if not user:
     raise HTTPException(404, "User is not registered!")
@@ -80,23 +80,48 @@ def create_quote(
     user_id=user.user_id,
   )
 
-  db.session.add(quote_object)
-  db.session.flush()
+  session.add(quote_object)
+  session.flush()
   
   quote_dump = quote_object.model_dump()
 
-  db.session.commit()
+  session.commit()
 
   return quote_dump
+
+@router.get(
+  "/top",
+  response_model=list[QuoteSchema],
+)
+def get_top_quotes(
+  limit: int = Query(
+    default=10,
+    description="The number of top quotes to retrieve"
+  ),
+  session: Session = Depends(db.get_session),
+) -> list[QuoteSchema]:
+  # Get top quotes of the last 30 days sorted by QuoteReaction count
+  query = (
+    select(Quote)
+    .outerjoin(Quote.reactions)
+    .where(Quote.created_at >= datetime.now() - timedelta(days=30))
+    .group_by(Quote.quote_id)
+    .order_by(func.count(Quote.reactions).desc())
+    .limit(limit)
+  )
+
+  result = session.exec(query).all()
+  return result
 
 @router.get(
   "/{id}",
   response_model=QuoteSchema
 )
-def get_quote(id: int) -> Quote:
-  db = DatabaseHandler()
-
-  result = db.session.exec(select(Quote).where(Quote.quote_id == id)).first()
+def get_quote(
+  id: int,
+  session: Session = Depends(db.get_session),
+) -> Quote:
+  result = session.exec(select(Quote).where(Quote.quote_id == id)).first()
   if not result:
     raise HTTPException(status_code=404, detail="Quote not found")
   return result
@@ -105,40 +130,20 @@ def get_quote(id: int) -> Quote:
   "/{id}/reactions",
   response_model=list[QuoteReaction]
 )
-def get_quote_reactions(id: int) -> list[QuoteReaction]:
-  db = DatabaseHandler()
-
-  result = db.session.exec(select(QuoteReaction).where(QuoteReaction.quote_id == id)).all()
+def get_quote_reactions(
+  id: int,
+  session: Session = Depends(db.get_session)
+) -> list[QuoteReaction]:
+  result = session.exec(select(QuoteReaction).where(QuoteReaction.quote_id == id)).all()
   return result
 
 @router.get(
   "/{id}/comments",
   response_model=list[QuoteComment]
 )
-def get_quote_comments(id: int) -> list[QuoteComment]:
-  db = DatabaseHandler()
-
-  result = db.session.exec(select(QuoteComment).where(QuoteComment.quote_id == id)).all()
-  return result
-
-@router.get(
-  "/top",
-  response_model=list[Quote],
-)
-def get_top_quotes(
-  limit: int = Query(
-    default=10,
-    description="The number of top quotes to retrieve"
-  )
-) -> list[QuoteSchema]:
-  db = DatabaseHandler()
-
-  # Get top quotes of the last 30 days sorted by QuoteReaction count
-  query = select(Quote).where(
-    Quote.created_at >= datetime.now() - timedelta(days=30)
-  ).order_by(
-    Quote.reactions.count()
-  ).limit(limit)
-
-  result = db.session.exec(query).all()
+def get_quote_comments(
+  id: int,
+  session: Session = Depends(db.get_session),
+) -> list[QuoteComment]:
+  result = session.exec(select(QuoteComment).where(QuoteComment.quote_id == id)).all()
   return result

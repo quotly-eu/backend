@@ -1,9 +1,8 @@
 from __init__ import VERSION, API_NAME
 from configparser import ConfigParser
-from datetime import datetime
 import jwt
-from sqlmodel import select
-from fastapi import APIRouter, FastAPI, Form, HTTPException
+from sqlmodel import Session, select
+from fastapi import APIRouter, Depends, FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Routes import
@@ -45,6 +44,8 @@ app.add_middleware(
 
 router = APIRouter(prefix="/v1")
 
+db = DatabaseHandler()
+
 # Root endpoints
 @router.post(
     "/authorize",
@@ -52,6 +53,7 @@ router = APIRouter(prefix="/v1")
 )
 def authorize(
   code: str = Form(..., description="Authorization code received from Discord", example="1234567890"),
+  session: Session = Depends(db.get_session),
 ):
   """
   Authorize user with Discord
@@ -72,20 +74,23 @@ def authorize(
   if not "id" in user_info:
     raise HTTPException(status_code=400, detail="Invalid user information")
 
-  user = User(
-    discord_id=user_info["id"],
-    email_address=user_info["email"],
-    display_name=user_info["global_name"],
-    avatar_url=user_info["avatar"],
-  )
+  # Add or update user
+  user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
 
-  # Check if user exists and if not, add it
-  db = DatabaseHandler()
-
-  result = db.session.exec(select(User).where(User.discord_id == user.discord_id)).first()
-  if not result:
-    db.session.add(user)
-    db.session.commit()
+  if not user:
+    user = User(
+      discord_id=user_info["id"],
+      email_address=user_info["email"],
+      display_name=user_info["global_name"],
+      avatar_url=user_info["avatar"],
+    )
+  else:
+    user.avatar_url = user_info["avatar"]
+    user.display_name = user_info["global_name"]
+    user.email_address = user_info["email"]
+    
+  session.add(user)
+  session.commit()
   
   return jwt.encode(access_response, key)
 
