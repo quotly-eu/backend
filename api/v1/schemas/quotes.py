@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Union
 from pydantic import BaseModel, Field
 
-from api.v1.models.models import QuoteReaction, User
+from api.v1.models.models import Quote, QuoteReaction, User
 
 from humps import camel
 
@@ -44,8 +44,6 @@ class QuoteSchema(Base):
   reactions: list[QuoteReaction] = []
 
 class QuoteCommentSchema(Base):
-  __tablename__ = "quote_comments"
-
   comment_id: int = Field(
     default=...,
     description="The saved quote identifier",
@@ -75,4 +73,12 @@ class QuoteCommentSchema(Base):
     description="The user's deletion date",
   )
 
+  user: Union[User, None] = None
+
+class SavedQuoteSchema(Base):
+  saved_id: int = Field(
+    default=...,
+    description="The saved quote identifier",
+  )
+  quote: Union[Quote, None] = None
   user: Union[User, None] = None

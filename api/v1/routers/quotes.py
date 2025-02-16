@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Union
 from fastapi import APIRouter, Depends, Form, HTTPException, Query
-from sqlmodel import Session, func, or_, select
-from api.v1.models.models import Quote, QuoteComment, QuoteReaction, User
-from api.v1.schemas.quotes import QuoteCommentSchema, QuoteSchema
+from sqlmodel import Session, and_, func, or_, select
+from api.v1.models.models import Quote, QuoteComment, QuoteReaction, SavedQuote, User
+from api.v1.schemas.quotes import QuoteCommentSchema, QuoteSchema, SavedQuoteSchema
 from database.main import DatabaseHandler
 from discord.main import DiscordOAuthHandler
 
@@ -32,7 +32,7 @@ def get_quotes(
     description="The search term to filter quotes by",
   ),
   sort: Literal["ascend", "descend"] | None = Query(
-    default="ascend",
+    default="descend",
     description="The order to sort the quotes by"
   ),
   session: Session = Depends(db.get_session),
@@ -78,6 +78,7 @@ def create_quote(
   quote_object = Quote(
     quote=quote,
     user_id=user.user_id,
+    created_at=datetime.now()
   )
 
   session.add(quote_object)
@@ -127,6 +128,63 @@ def get_quote(
   return result
 
 @router.get(
+  "/{id}/saved",
+  response_model=Union[SavedQuoteSchema, None]
+)
+def is_quote_saved(
+  id: int,
+  token: str = Query(..., description="The JWT token from the current user"),
+  session: Session = Depends(db.get_session)
+):
+  dc_handler = DiscordOAuthHandler()
+  user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
+
+  user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+  if not user:
+    raise HTTPException(status_code=404, detail="User not found")
+
+  quote = session.exec(select(Quote).where(Quote.quote_id == id)).first()
+  if not quote:
+    raise HTTPException(status_code=404, detail="Quote not found")
+
+  saved = session.exec(select(SavedQuote).where(and_(SavedQuote.quote_id == quote.quote_id, SavedQuote.user_id == user.user_id))).first()
+  return saved
+
+@router.post(
+  "/{id}/toggleSave",
+  response_model=bool
+)
+def quote_toggle_save(
+  id: int,
+  token: str = Form(..., description="The JWT token from the current user"),
+  session: Session = Depends(db.get_session)
+):
+  dc_handler = DiscordOAuthHandler()
+  user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
+
+  user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+  if not user:
+    raise HTTPException(status_code=404, detail="User not found")
+
+  quote = session.exec(select(Quote).where(Quote.quote_id == id)).first()
+  if not quote:
+    raise HTTPException(status_code=404, detail="Quote not found")
+
+  saved = session.exec(select(SavedQuote).where(and_(SavedQuote.quote_id == quote.quote_id, SavedQuote.user_id == user.user_id))).first()
+  if saved:
+    session.delete(saved)
+    session.commit()
+  else:
+    saved_object = SavedQuote(
+      user_id=user.user_id,
+      quote_id=quote.quote_id
+    )
+    session.add(saved_object)
+    session.commit()
+  
+  return False if saved else True
+
+@router.get(
   "/{id}/reactions",
   response_model=list[QuoteReaction]
 )
@@ -147,3 +205,43 @@ def get_quote_comments(
 ) -> list[QuoteComment]:
   result = session.exec(select(QuoteComment).where(QuoteComment.quote_id == id)).all()
   return result
+
+@router.post(
+  "/{id}/comments/create",
+  response_model=QuoteCommentSchema
+)
+def create_quote_comment(
+  id: int,
+  comment: str = Form(..., description="Comment's text"),
+  token: str = Form(..., description="The JWT token from the current user"),
+  session: Session = Depends(db.get_session)
+):
+  if not comment:
+    raise HTTPException(400, "Required comment is empty!")
+  
+  if not token:
+    raise HTTPException(400, "Required token is empty!")
+  
+  dc_handler = DiscordOAuthHandler()
+
+  user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
+  user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+
+  if not user:
+    raise HTTPException(404, "User is not registered!")
+  
+  comment_object = QuoteComment(
+    comment=comment,
+    quote_id=id,
+    user_id=user.user_id,
+    created_at=datetime.now()
+  )
+
+  session.add(comment_object)
+  session.flush()
+  
+  comment_dump = comment_object.model_dump()
+
+  session.commit()
+
+  return comment_dump

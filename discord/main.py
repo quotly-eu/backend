@@ -43,7 +43,7 @@ class DiscordOAuthHandler:
     )
     return response.json()
   
-  def decode_token(self, token):
+  def decode_token(self, token: str):
     access_response: AccessResponse = jwt.decode(token, self.__key, algorithms=["HS256"])
     return access_response
     

@@ -1,3 +1,4 @@
+from datetime import datetime
 from __init__ import VERSION, API_NAME
 from configparser import ConfigParser
 import jwt
@@ -82,6 +83,7 @@ def authorize(
       email_address=user_info["email"],
       display_name=user_info["global_name"],
       avatar_url=user_info["avatar"],
+      created_at=datetime.now()
     )
   else:
     user.avatar_url = user_info["avatar"]

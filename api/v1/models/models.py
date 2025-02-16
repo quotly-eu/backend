@@ -14,7 +14,7 @@ class Quote(Base, table=True):
   __tablename__ = "quotes"
 
   quote: str = Field(
-    default=None,
+    default=...,
     description="The quote text"
   )
   quote_id: int = Field(
@@ -92,6 +92,7 @@ class SavedQuote(Base, table=True):
     foreign_key="quotes.quote_id",
   )
   quote: Quote = Relationship(back_populates="saved_quotes")
+  user: "User" = Relationship(back_populates="saved_quotes")
 
 class QuoteComment(Base, table=True):
   __tablename__ = "quote_comments"
@@ -121,7 +122,7 @@ class QuoteComment(Base, table=True):
     description="The comment text",
   )
   created_at: datetime = Field(
-    default=...,
+    default=datetime.now(),
     description="The user's creation date",
   )
   updated_at: datetime | None = Field(
@@ -196,6 +197,7 @@ class User(Base, table=True):
 
   quotes: list["Quote"] = Relationship(back_populates="user")
   comments: list["QuoteComment"] = Relationship(back_populates="user")
+  saved_quotes: list["SavedQuote"] = Relationship(back_populates="user")
 
 class UserRole(Base, table=True):
   __tablename__ = "user_roles"
