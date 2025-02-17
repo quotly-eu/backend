@@ -41,9 +41,9 @@ class Quote(Base, table=True):
   )
 
   user: "User" = Relationship(back_populates="quotes")
-  reactions: list["QuoteReaction"] = Relationship(back_populates="quote")
-  saved_quotes: list["SavedQuote"] = Relationship(back_populates="quote")
-  comments: list["QuoteComment"] = Relationship(back_populates="quote")
+  reactions: list["QuoteReaction"] = Relationship(back_populates="quote", cascade_delete=True)
+  saved_quotes: list["SavedQuote"] = Relationship(back_populates="quote", cascade_delete=True)
+  comments: list["QuoteComment"] = Relationship(back_populates="quote", cascade_delete=True)
 
 class QuoteReaction(Base, table=True):
   __tablename__ = "quote_reactions"
@@ -155,7 +155,7 @@ class Role(Base, table=True):
     description="The role's creation date",
   )
 
-  user_roles: list["UserRole"] = Relationship(back_populates="role")
+  user_roles: list["UserRole"] = Relationship(back_populates="role", cascade_delete=True)
 
 
 # Define the Users Table
@@ -195,9 +195,10 @@ class User(Base, table=True):
     description="The user's deletion date",
   )
 
-  quotes: list["Quote"] = Relationship(back_populates="user")
-  comments: list["QuoteComment"] = Relationship(back_populates="user")
-  saved_quotes: list["SavedQuote"] = Relationship(back_populates="user")
+  quotes: list["Quote"] = Relationship(back_populates="user", cascade_delete=True)
+  comments: list["QuoteComment"] = Relationship(back_populates="user", cascade_delete=True)
+  saved_quotes: list["SavedQuote"] = Relationship(back_populates="user", cascade_delete=True)
+  roles: list["UserRole"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserRole(Base, table=True):
   __tablename__ = "user_roles"
@@ -219,3 +220,4 @@ class UserRole(Base, table=True):
   )
 
   role: Role = Relationship(back_populates="user_roles")
+  user: User = Relationship(back_populates="roles")

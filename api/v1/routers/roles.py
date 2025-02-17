@@ -11,7 +11,7 @@ router = APIRouter(
 db = DatabaseHandler()
 
 @router.get(
-  "/",
+  "",
   response_model=list[Role]
 )
 def get_roles(

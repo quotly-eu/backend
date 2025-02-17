@@ -56,6 +56,7 @@ def get_quotes(
 
   return session.exec(query).all()
 
+
 @router.post(
     "/create",
     response_model=QuoteSchema
@@ -90,6 +91,40 @@ def create_quote(
 
   return quote_dump
 
+
+@router.delete(
+  "/{id}/delete",
+  response_model=None
+)
+def delete_quote(
+  id: int,
+  token: str = Form(..., description="The JWT token from the current user"),
+  session: Session = Depends(db.get_session)
+): 
+  dc_handler = DiscordOAuthHandler()
+  user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
+
+  user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+
+  if not user:
+    raise HTTPException(404, "User is not registered!")
+
+  quote = session.exec(select(Quote).where(Quote.quote_id == id)).first()
+  if not quote:
+    raise HTTPException(404, "Quote not found!")
+  
+  is_admin = False
+  for role in user.roles:
+    if role.role.name == "admin":
+      is_admin = True
+
+  if quote.user_id is not user.user_id or not is_admin:
+    raise HTTPException(400, "Unsufficient permissions!")
+  
+  session.delete(quote)
+  session.commit()
+
+
 @router.get(
   "/top",
   response_model=list[QuoteSchema],
@@ -114,6 +149,7 @@ def get_top_quotes(
   result = session.exec(query).all()
   return result
 
+
 @router.get(
   "/{id}",
   response_model=QuoteSchema
@@ -126,6 +162,7 @@ def get_quote(
   if not result:
     raise HTTPException(status_code=404, detail="Quote not found")
   return result
+
 
 @router.get(
   "/{id}/saved",
@@ -149,6 +186,7 @@ def is_quote_saved(
 
   saved = session.exec(select(SavedQuote).where(and_(SavedQuote.quote_id == quote.quote_id, SavedQuote.user_id == user.user_id))).first()
   return saved
+
 
 @router.post(
   "/{id}/toggleSave",
@@ -184,6 +222,7 @@ def quote_toggle_save(
   
   return False if saved else True
 
+
 @router.get(
   "/{id}/reactions",
   response_model=list[QuoteReaction]
@@ -195,6 +234,7 @@ def get_quote_reactions(
   result = session.exec(select(QuoteReaction).where(QuoteReaction.quote_id == id)).all()
   return result
 
+
 @router.get(
   "/{id}/comments",
   response_model=list[QuoteCommentSchema]
@@ -205,6 +245,7 @@ def get_quote_comments(
 ) -> list[QuoteComment]:
   result = session.exec(select(QuoteComment).where(QuoteComment.quote_id == id)).all()
   return result
+
 
 @router.post(
   "/{id}/comments/create",

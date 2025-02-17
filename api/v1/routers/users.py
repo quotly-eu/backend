@@ -12,7 +12,7 @@ router = APIRouter(
 
 db = DatabaseHandler()
 
-@router.get("/", response_model=list[User])
+@router.get("", response_model=list[User])
 def get_users(
   page: int = Query(
     default=None,
