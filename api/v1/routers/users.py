@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlmodel import Session, or_, select
 from api.v1.models.models import Quote, QuoteReaction, SavedQuote
 from api.v1.models.models import Role, User, UserRole
+from api.v1.schemas.quotes import QuoteSchema
 from database.main import DatabaseHandler
 from discord.main import DiscordOAuthHandler
 
@@ -105,7 +106,7 @@ def get_user_roles(
 
 @router.get(
   "/{id}/saved-quotes",
-  response_model=list[Quote]
+  response_model=list[QuoteSchema]
 )
 def get_user_saved_quotes(
   id: int = Path(

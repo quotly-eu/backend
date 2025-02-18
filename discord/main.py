@@ -2,7 +2,6 @@ from configparser import ConfigParser
 from typing import Optional, TypedDict
 
 import jwt
-from loguru import logger
 import requests
 
 
