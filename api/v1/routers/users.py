@@ -77,6 +77,20 @@ def get_user(
   return result
 
 @router.get(
+  "/{id}/quotes",
+  response_model=list[QuoteSchema]
+)
+def get_user_quotes(
+  id: int,
+  session: Session = Depends(db.get_session)
+):
+  result = session.exec(select(User).where(User.user_id == id)).first()
+  if not result:
+    raise HTTPException(404, "User not found!")
+  
+  return result.quotes
+
+@router.get(
   "/{id}/reactions",
   response_model=list[QuoteReaction]
 )
