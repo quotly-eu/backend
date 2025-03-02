@@ -1,84 +1,109 @@
 from datetime import datetime
-from typing import Union
-from pydantic import BaseModel, Field
-
-from api.v1.models.models import Quote, QuoteReaction, User
+from typing import Optional, Union
 
 from humps import camel
+from pydantic import BaseModel, Field
+
+from api.v1.models.models import Quote, User
+
 
 def to_camel(string):
-  return camel.case(string)
+    return camel.case(string)
+
 
 class Base(BaseModel):
-  class Config:
-    alias_generator = to_camel
-    populate_by_name = True
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
 
 class QuoteSchema(Base):
-  quote: str = Field(
-    default=None,
-    description="The quote text"
-  )
-  quote_id: int = Field(
-    default=...,
-    description="The quote identifier",
-  )
-  user_id: int = Field(
-    default=...,
-    description="The user identifier",
-  )
-  created_at: datetime = Field(
-    default=datetime.now(),
-    description="The quote creation date",
-  )
-  changed_at: datetime | None = Field(
-    default=None,
-    description="The quote last change date",
-  )
-  deleted_at: datetime | None = Field(
-    default=None,
-    description="The quote deletion date",
-  )
+    quote: str = Field(
+        default=None,
+        description="The quote text"
+    )
+    quote_id: int = Field(
+        default=...,
+        description="The quote identifier",
+    )
+    user_id: int = Field(
+        default=...,
+        description="The user identifier",
+    )
+    created_at: datetime = Field(
+        default=datetime.now(),
+        description="The quote creation date",
+    )
+    changed_at: datetime | None = Field(
+        default=None,
+        description="The quote last change date",
+    )
+    deleted_at: datetime | None = Field(
+        default=None,
+        description="The quote deletion date",
+    )
 
-  user: Union[User, None] = None
-  reactions: list[QuoteReaction] = []
+    is_saved: Optional[bool] = Field(
+        default=False,
+        description="The quote is saved by the user",
+    )
+    reaction: Optional[str] = Field(
+        default=None,
+        description="The user's reaction to the quote",
+    )
+
+    user: Union[User, None] = None
+    reactions: list["QuoteReactionSchema"] = []
+
 
 class QuoteCommentSchema(Base):
-  comment_id: int = Field(
-    default=...,
-    description="The saved quote identifier",
-  )
-  parent: int | None = Field(
-    default=None,
-    description="The parent comment identifier",
-  )
-  quote_id: int = Field(
-    default=...,
-    description="The quote identifier",
-  )
-  comment: str = Field(
-    default=...,
-    description="The comment text",
-  )
-  created_at: datetime = Field(
-    default=...,
-    description="The user's creation date",
-  )
-  updated_at: datetime | None = Field(
-    default=None,
-    description="The user's last update date",
-  )
-  deleted_at: datetime | None = Field(
-    default=None,
-    description="The user's deletion date",
-  )
+    comment_id: int = Field(
+        default=...,
+        description="The saved quote identifier",
+    )
+    parent: int | None = Field(
+        default=None,
+        description="The parent comment identifier",
+    )
+    quote_id: int = Field(
+        default=...,
+        description="The quote identifier",
+    )
+    comment: str = Field(
+        default=...,
+        description="The comment text",
+    )
+    created_at: datetime = Field(
+        default=...,
+        description="The user's creation date",
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        description="The user's last update date",
+    )
+    deleted_at: datetime | None = Field(
+        default=None,
+        description="The user's deletion date",
+    )
 
-  user: Union[User, None] = None
+    user: Union[User, None] = None
+
+
+class QuoteReactionSchema(Base):
+    reaction_name: str = Field(
+        default=...,
+        description="The reaction name",
+    )
+    count: int = Field(
+        default=0,
+        description="The reaction count",
+    )
+
 
 class SavedQuoteSchema(Base):
-  saved_id: int = Field(
-    default=...,
-    description="The saved quote identifier",
-  )
-  quote: Union[Quote, None] = None
-  user: Union[User, None] = None
+    saved_id: int = Field(
+        default=...,
+        description="The saved quote identifier",
+    )
+    quote: Union[Quote, None] = None
+    user: Union[User, None] = None

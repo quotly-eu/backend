@@ -1,5 +1,7 @@
 from configparser import ConfigParser
+
 from sqlmodel import Session, create_engine
+
 
 class DatabaseHandler:
     def __init__(self):
@@ -13,9 +15,9 @@ class DatabaseHandler:
         database = parser.get("Database", "database")
 
         self.engine = create_engine(
-            f"mariadb+mariadbconnector://{user}:{password}@{host}:{port}/{database}", 
-            pool_size=20, 
-            pool_pre_ping=True, 
+            f"mariadb+mariadbconnector://{user}:{password}@{host}:{port}/{database}",
+            pool_size=20,
+            pool_pre_ping=True,
             max_overflow=5
         )
 
