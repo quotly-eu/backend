@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
 from typing import Literal, Union
 
+from discord_webhook import DiscordEmbed, DiscordWebhook
 from fastapi import APIRouter, Depends, Form, HTTPException, Query
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, and_, func, or_, select
 
 from api.v1.models.models import Quote, QuoteComment, QuoteReaction, SavedQuote, User
@@ -45,16 +47,16 @@ def get_quotes(
     session: Session = Depends(db.get_session),
 ):
     # Query quotes
-    query = select(Quote)
+    query = select(Quote).options(selectinload(Quote.user))
 
     if page and limit and page > 0 and limit > 0:
         query = query.limit(limit).offset((page - 1) * limit)
 
     if search:
-        query = query.where(
+        query = query.join(User).where(
             or_(
                 Quote.quote.like(f"%{search}%"),
-                Quote.user_id.like(f"%{search}%"),
+                User.display_name.like(f"%{search}%")
             )
         )
 
@@ -79,6 +81,10 @@ def get_quotes(
 def create_quote(
     quote: str = Form(..., description="The quote markdown text"),
     token: str = Form(..., description="The JWT token from the current user"),
+    send_webhook: bool = Form(
+        default=False,
+        description="Send the quote to the Discord webhook"
+    ),
     session: Session = Depends(db.get_session),
 ):
     dc_handler = DiscordOAuthHandler()
@@ -100,9 +106,32 @@ def create_quote(
     session.add(quote_obj)
     session.flush()
 
-    quote_dump = quote_obj.formatted_quote(user_info)
+    quote_dump: QuoteSchema = quote_obj.formatted_quote()
 
     session.commit()
+
+    if send_webhook:
+        # Post to Discord Webhook
+        webhook = DiscordWebhook(
+            url=dc_handler.webhook_url,
+            avatar_url="https://quotly.eu/quotly512.png",
+            username="Quotly",
+        )
+        embed = DiscordEmbed(
+            title= "Quotly",
+            url=f"https://quotly.eu/quote/{quote_dump.get("quote_id")}",
+            description=quote_dump.get("quote"),
+            color=0xffffff,
+            footer={
+                "text": quote_dump.get("user").display_name,
+                "icon_url": (
+                    f"https://cdn.discordapp.com/avatars/{quote_dump.get("user").discord_id}/"
+                    f"{quote_dump.get("user").avatar_url}"
+                )
+            }
+        )
+        webhook.add_embed(embed)
+        webhook.execute()
 
     return quote_dump
 

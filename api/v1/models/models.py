@@ -52,7 +52,7 @@ class Quote(Base, table=True):
     saved_quotes: list["SavedQuote"] = Relationship(back_populates="quote", cascade_delete=True)
     comments: list["QuoteComment"] = Relationship(back_populates="quote", cascade_delete=True)
 
-    def formatted_quote(self, user_info: Optional[UserObject] = None) -> dict:
+    def formatted_quote(self, user_info: Optional[UserObject] = None):
         if not user_info:
             return {
                 **self.model_dump(),

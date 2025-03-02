@@ -15,6 +15,7 @@ class DiscordOAuthHandler:
         self.__key = parser.get("JWT", "key")
 
         self.discord_api_endpoint = "https://discord.com/api/v10"
+        self.webhook_url = f"{self.discord_api_endpoint}/webhooks/{parser.get("Discord", "webhook")}"
 
     def receive_access_response(
         self,
