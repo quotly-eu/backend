@@ -15,7 +15,7 @@ router = APIRouter(
 )
 
 db = DatabaseHandler()
-
+dc_handler = DiscordOAuthHandler()
 
 @router.get("", response_model=list[User])
 def get_users(
@@ -57,7 +57,6 @@ def get_me(
     ),
     session: Session = Depends(db.get_session),
 ) -> User:
-    dc_handler = DiscordOAuthHandler()
     access_response = dc_handler.decode_token(token)
 
     user_info = dc_handler.receive_user_information(access_response["access_token"])
@@ -110,7 +109,6 @@ def get_user_quotes(
         user.quotes.sort(key=lambda quote: quote.created_at, reverse=True)
 
     if token:
-        dc_handler = DiscordOAuthHandler()
         user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
         return [quote.formatted_quote(user_info) for quote in user.quotes]
     return [quote.formatted_quote() for quote in user.quotes]
@@ -164,7 +162,6 @@ def get_user_saved_quotes(
     saved_quotes = session.exec(select(SavedQuote).where(SavedQuote.user_id == id)).all()
 
     if token:
-        dc_handler = DiscordOAuthHandler()
         user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
         return [saved_quote.quote.formatted_quote(user_info) for saved_quote in saved_quotes]
     return [saved_quote.quote.formatted_quote() for saved_quote in saved_quotes]

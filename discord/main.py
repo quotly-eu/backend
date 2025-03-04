@@ -4,11 +4,11 @@ from typing import Optional, TypedDict
 import jwt
 import requests
 
+from config.main import parser
+
 
 class DiscordOAuthHandler:
     def __init__(self):
-        parser = ConfigParser()
-        parser.read("config.ini")
         self.__client_id = parser.get("Discord", "client_id")
         self.__client_secret = parser.get("Discord", "client_secret")
         self.__redirect_uri = parser.get("Discord", "redirect_uri")

@@ -2,12 +2,11 @@ from configparser import ConfigParser
 
 from sqlmodel import Session, create_engine
 
+from config.main import parser
+
 
 class DatabaseHandler:
     def __init__(self):
-        parser = ConfigParser()
-        parser.read("config.ini")
-
         user = parser.get("Database", "user")
         password = parser.get("Database", "password")
         host = parser.get("Database", "host")

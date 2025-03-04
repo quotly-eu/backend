@@ -7,33 +7,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from __init__ import VERSION, API_NAME
-# Routes import
 from api.v1.models.models import User
 from api.v1.routers import quotes, roles, users
+from config.main import tags_metadata, parser
 from database.main import DatabaseHandler
 from discord.main import DiscordOAuthHandler
-
-# FastAPI instance
-tags_metadata = [
-    {
-        "name": "Quotes",
-        "description": "Endpoints related to quotes"
-    },
-    {
-        "name": "Users",
-        "description": "Endpoints related to users"
-    },
-    {
-        "name": "Roles",
-        "description": "Endpoints related to roles"
-    }
-]
 
 app = FastAPI(
     title=API_NAME,
     version=VERSION,
     openapi_tags=tags_metadata
 )
+db = DatabaseHandler()
+dc_handler = DiscordOAuthHandler()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,8 +29,6 @@ app.add_middleware(
 )
 
 router = APIRouter(prefix="/v1")
-
-db = DatabaseHandler()
 
 
 # Root endpoints
@@ -61,11 +45,7 @@ def authorize(
 
     :return: JWT token
     """
-    parser = ConfigParser()
-    parser.read("config.ini")
     key = parser.get("JWT", "key")
-
-    dc_handler = DiscordOAuthHandler()
 
     access_response = dc_handler.receive_access_response(code)
     if not "access_token" in access_response:

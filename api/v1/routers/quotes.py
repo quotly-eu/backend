@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 db = DatabaseHandler()
-
+dc_handler = DiscordOAuthHandler()
 
 @router.get(
     "",
@@ -68,7 +68,6 @@ def get_quotes(
     quotes = session.exec(query).all()
 
     if token:
-        dc_handler = DiscordOAuthHandler()
         user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
         return [quote.formatted_quote(user_info) for quote in quotes]
     return [quote.formatted_quote() for quote in quotes]
@@ -87,8 +86,6 @@ def create_quote(
     ),
     session: Session = Depends(db.get_session),
 ):
-    dc_handler = DiscordOAuthHandler()
-
     access_response = dc_handler.decode_token(token)
 
     user_info = dc_handler.receive_user_information(access_response["access_token"])
@@ -145,7 +142,6 @@ def delete_quote(
     token: str = Form(..., description="The JWT token from the current user"),
     session: Session = Depends(db.get_session)
 ):
-    dc_handler = DiscordOAuthHandler()
     user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
 
     user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
@@ -197,7 +193,6 @@ def get_top_quotes(
     quotes = session.exec(query).all()
 
     if token:
-        dc_handler = DiscordOAuthHandler()
         user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
         return [quote.formatted_quote(user_info) for quote in quotes]
     return [quote.formatted_quote() for quote in quotes]
@@ -220,7 +215,6 @@ def get_quote(
         raise HTTPException(status_code=404, detail="Quote not found")
 
     if token:
-        dc_handler = DiscordOAuthHandler()
         user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
         return quote.formatted_quote(user_info)
     return quote.formatted_quote()
@@ -235,7 +229,6 @@ def is_quote_saved(
     token: str = Query(..., description="The JWT token from the current user"),
     session: Session = Depends(db.get_session)
 ):
-    dc_handler = DiscordOAuthHandler()
     user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
 
     user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
@@ -265,7 +258,6 @@ def quote_toggle_react(
     token: str = Form(..., description="The JWT token from the current user"),
     session: Session = Depends(db.get_session)
 ):
-    dc_handler = DiscordOAuthHandler()
     user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
 
     user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
@@ -310,7 +302,6 @@ def quote_toggle_save(
     token: str = Form(..., description="The JWT token from the current user"),
     session: Session = Depends(db.get_session)
 ):
-    dc_handler = DiscordOAuthHandler()
     user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
 
     user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
@@ -377,8 +368,6 @@ def create_quote_comment(
 
     if not token:
         raise HTTPException(400, "Required token is empty!")
-
-    dc_handler = DiscordOAuthHandler()
 
     user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
     user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
