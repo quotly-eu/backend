@@ -62,8 +62,32 @@ def get_me(
     user_info = dc_handler.receive_user_information(access_response["access_token"])
     user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
 
-    return user.model_dump(by_alias=True)
+    return user.model_dump()
 
+@router.delete(
+    "/me/delete",
+    response_model=User
+)
+def delete_me(
+    token: str = Query(
+        default=...,
+        description="The JWT token"
+    ),
+    session: Session = Depends(db.get_session),
+) -> User:
+    access_response = dc_handler.decode_token(token)
+
+    user_info = dc_handler.receive_user_information(access_response["access_token"])
+    user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
+
+    if not user:
+        raise HTTPException(404, "User not found!")
+
+    user_dump = user.model_dump()
+    session.delete(user)
+    session.commit()
+
+    return user_dump
 
 @router.get(
     "/{id}",

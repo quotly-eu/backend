@@ -1,7 +1,7 @@
 from configparser import ConfigParser
 
 parser = ConfigParser()
-parser.read(["config.ini"])
+parser.read("config/config.ini")
 
 # FastAPI metadata
 tags_metadata = [
