@@ -12,6 +12,8 @@ class DiscordOAuthHandler:
         self.__client_id = parser.get("Discord", "client_id")
         self.__client_secret = parser.get("Discord", "client_secret")
         self.__redirect_uri = parser.get("Discord", "redirect_uri")
+        self.redirect_uri_oauth = f"{self.__redirect_uri}/oauth"
+        self.redirect_uri_webhook = f"{self.__redirect_uri}/webhook"
         self.__key = parser.get("JWT", "key")
 
         self.discord_api_endpoint = "https://discord.com/api/v10"
@@ -20,11 +22,12 @@ class DiscordOAuthHandler:
     def receive_access_response(
         self,
         code: str,
+        redirect_uri: Optional[str] = None,
     ) -> "AccessResponse":
         data = {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": self.__redirect_uri,
+            "redirect_uri": redirect_uri if redirect_uri else self.redirect_uri_oauth,
         }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         response = requests.post(
@@ -54,6 +57,7 @@ class AccessResponse(TypedDict):
     expires_in: int
     refresh_token: str
     scope: str
+    webhook: Optional["Webhook"]
 
 
 class UserObject(TypedDict):
@@ -79,3 +83,14 @@ class UserObject(TypedDict):
 class AvatarDecoration(TypedDict):
     asset: str
     sku_id: str
+
+class Webhook(TypedDict):
+    type: int
+    id: str
+    name: str
+    avatar: str
+    channel_id: str
+    guild_id: str
+    application_id: str
+    token: str
+    url: str

@@ -260,6 +260,7 @@ class User(Base, table=True):
     saved_quotes: list["SavedQuote"] = Relationship(back_populates="user", cascade_delete=True)
     reactions: list["QuoteReaction"] = Relationship(back_populates="user", cascade_delete=True)
     roles: list["UserRole"] = Relationship(back_populates="user", cascade_delete=True)
+    webhooks: list["Webhook"] = Relationship(back_populates="user", cascade_delete=True)
 
 
 class UserRole(Base, table=True):
@@ -283,3 +284,26 @@ class UserRole(Base, table=True):
 
     role: Role = Relationship(back_populates="user_roles")
     user: User = Relationship(back_populates="roles")
+
+class Webhook(Base, table=True):
+    __tablename__ = "webhooks"
+
+    id: int = Field(
+        default=None,
+        description="The webhook db identifier",
+        primary_key=True
+    )
+    user_id: int = Field(
+        default=...,
+        description="The user identifier",
+        foreign_key="users.user_id"
+    )
+    webhook_id: str = Field(
+        default=...,
+        description="The webhook identifier"
+    )
+    webhook_token: str = Field(
+        default=...,
+        description="The webhook token",
+    )
+    user: User = Relationship(back_populates="webhooks")

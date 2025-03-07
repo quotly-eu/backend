@@ -1,13 +1,24 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from sqlmodel import Session, or_, select
+from fastapi import APIRouter, Depends, Path, Query, Form
+from sqlmodel import Session
 
-from api.v1.models.models import Quote, QuoteReaction, SavedQuote
-from api.v1.models.models import Role, User, UserRole
+from api.v1.models.models import Quote, QuoteReaction, Webhook
+from api.v1.models.models import Role, User
 from api.v1.schemas.quotes import QuoteSchema
+from api.v1.tasks.users import (
+    _get_users,
+    _get_me,
+    _delete_me,
+    _get_user,
+    _get_user_quotes,
+    _get_user_reactions,
+    _get_user_roles,
+    _get_user_saved_quotes,
+    _create_webhook,
+    _get_webhooks, _delete_webhook
+)
 from database.main import DatabaseHandler
-from discord.main import DiscordOAuthHandler
 
 router = APIRouter(
     prefix="/users",
@@ -15,7 +26,7 @@ router = APIRouter(
 )
 
 db = DatabaseHandler()
-dc_handler = DiscordOAuthHandler()
+
 
 @router.get("", response_model=list[User])
 def get_users(
@@ -33,17 +44,7 @@ def get_users(
     ),
     session: Session = Depends(db.get_session),
 ) -> list[User]:
-    query = select(User)
-
-    if page and limit and page > 0 and limit > 0:
-        query = query.limit(limit).offset(page - 1 * limit)
-
-    if search:
-        query = query.filter(User.display_name.like(f"%{search}%"))
-
-    result = session.exec(query).all()
-
-    return result
+    return _get_users(page, limit, search, session)
 
 
 @router.get(
@@ -57,37 +58,22 @@ def get_me(
     ),
     session: Session = Depends(db.get_session),
 ) -> User:
-    access_response = dc_handler.decode_token(token)
+    return _get_me(token, session)
 
-    user_info = dc_handler.receive_user_information(access_response["access_token"])
-    user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
-
-    return user.model_dump()
 
 @router.delete(
     "/me/delete",
     response_model=User
 )
 def delete_me(
-    token: str = Query(
+    token: str = Form(
         default=...,
         description="The JWT token"
     ),
     session: Session = Depends(db.get_session),
 ) -> User:
-    access_response = dc_handler.decode_token(token)
+    return _delete_me(token, session)
 
-    user_info = dc_handler.receive_user_information(access_response["access_token"])
-    user = session.exec(select(User).where(User.discord_id == user_info["id"])).first()
-
-    if not user:
-        raise HTTPException(404, "User not found!")
-
-    user_dump = user.model_dump()
-    session.delete(user)
-    session.commit()
-
-    return user_dump
 
 @router.get(
     "/{id}",
@@ -100,10 +86,7 @@ def get_user(
     ),
     session: Session = Depends(db.get_session),
 ) -> User:
-    result = session.exec(select(User).where(or_(User.user_id == id, User.discord_id == id))).first()
-    if not result:
-        raise HTTPException(status_code=404, detail="User not found")
-    return result
+    return _get_user(id, session)
 
 
 @router.get(
@@ -111,8 +94,11 @@ def get_user(
     response_model=list[QuoteSchema]
 )
 def get_user_quotes(
-    id: int,
-    sort: Literal["ascend", "descend"] | None = Query(
+    id: int = Path(
+        default=...,
+        description="The user identifier"
+    ),
+    sort: Literal["ascend", "descend"] = Query(
         default="descend",
         description="The order to sort the quotes by"
     ),
@@ -122,20 +108,7 @@ def get_user_quotes(
     ),
     session: Session = Depends(db.get_session)
 ):
-    user: User = session.exec(select(User).where(User.user_id == id)).first()
-    if not user:
-        raise HTTPException(404, "User not found!")
-
-    # Sort quotes by created_at
-    if sort == "ascend":
-        user.quotes.sort(key=lambda quote: quote.created_at)
-    else:
-        user.quotes.sort(key=lambda quote: quote.created_at, reverse=True)
-
-    if token:
-        user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
-        return [quote.formatted_quote(user_info) for quote in user.quotes]
-    return [quote.formatted_quote() for quote in user.quotes]
+    return _get_user_quotes(id, sort, token, session)
 
 
 @router.get(
@@ -149,8 +122,7 @@ def get_user_reactions(
     ),
     session: Session = Depends(db.get_session),
 ) -> list[QuoteReaction]:
-    result: list[QuoteReaction] = session.exec(select(QuoteReaction).where(QuoteReaction.user_id == id)).all()
-    return result
+    return _get_user_reactions(id, session)
 
 
 @router.get(
@@ -164,8 +136,7 @@ def get_user_roles(
     ),
     session: Session = Depends(db.get_session),
 ) -> list[Role]:
-    user_roles = session.exec(select(UserRole).where(UserRole.user_id == id)).all()
-    return [user_role.role for user_role in user_roles]
+    return _get_user_roles(id, session)
 
 
 @router.get(
@@ -183,9 +154,46 @@ def get_user_saved_quotes(
     ),
     session: Session = Depends(db.get_session),
 ) -> list[Quote]:
-    saved_quotes = session.exec(select(SavedQuote).where(SavedQuote.user_id == id)).all()
+    return _get_user_saved_quotes(id, token, session)
 
-    if token:
-        user_info = dc_handler.receive_user_information(dc_handler.decode_token(token)["access_token"])
-        return [saved_quote.quote.formatted_quote(user_info) for saved_quote in saved_quotes]
-    return [saved_quote.quote.formatted_quote() for saved_quote in saved_quotes]
+
+@router.post(
+    "/webhook"
+)
+def create_webhook(
+    code: str = Form(
+        ...,
+        description="The code response from discord"
+    ),
+    session: Session = Depends(db.get_session),
+):
+    return _create_webhook(code, session)
+
+@router.get(
+    "/me/webhooks",
+    response_model=list[Webhook]
+)
+def get_webhooks(
+    token: str = Query(
+        default=...,
+        description="The JWT token"
+    ),
+    session: Session = Depends(db.get_session),
+):
+    return _get_webhooks(token, session)
+
+@router.delete(
+    "/webhook"
+)
+def create_webhook(
+    token: str = Form(
+        ...,
+        description="The JWT token"
+    ),
+    id: int = Form(
+        ...,
+        description="The webhook db identifier"
+    ),
+    session: Session = Depends(db.get_session),
+):
+    return _delete_webhook(token, id, session)
