@@ -8,7 +8,7 @@ if __name__ == "__main__":
     logger.info(f"Starting {API_NAME}...")
     uvicorn.run(
         "api.v1.main:app",
-        port=3510,
+        port=3560,
         reload=True,
         access_log="uvicorn_access.log",
     )
