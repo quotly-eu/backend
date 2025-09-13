@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from api.v1.models.models import Quote, QuoteReaction, Webhook
 from api.v1.models.models import Role, User
+from api.v1.schemas.discord import AuthorizeBody, TokenBase, WebhookDeleteBody
 from api.v1.schemas.quotes import QuoteSchema
 from api.v1.tasks.users import (
     _get_users,
@@ -66,13 +67,10 @@ def get_me(
     response_model=User
 )
 def delete_me(
-    token: str = Form(
-        default=...,
-        description="The JWT token"
-    ),
+    payload: TokenBase,
     session: Session = Depends(db.get_session),
 ) -> User:
-    return _delete_me(token, session)
+    return _delete_me(payload.token, session)
 
 
 @router.get(
@@ -161,13 +159,10 @@ def get_user_saved_quotes(
     "/webhook"
 )
 def create_webhook(
-    code: str = Form(
-        ...,
-        description="The code response from discord"
-    ),
+    payload: AuthorizeBody,
     session: Session = Depends(db.get_session),
 ):
-    return _create_webhook(code, session)
+    return _create_webhook(payload.code, session)
 
 @router.get(
     "/me/webhooks",
@@ -185,15 +180,8 @@ def get_webhooks(
 @router.delete(
     "/webhook"
 )
-def create_webhook(
-    token: str = Form(
-        ...,
-        description="The JWT token"
-    ),
-    id: int = Form(
-        ...,
-        description="The webhook db identifier"
-    ),
+def delete_webhook(
+    payload: WebhookDeleteBody,
     session: Session = Depends(db.get_session),
 ):
-    return _delete_webhook(token, id, session)
+    return _delete_webhook(payload.token, payload.id, session)

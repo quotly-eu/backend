@@ -4,6 +4,7 @@ from sqlmodel import Session
 
 from __init__ import VERSION, API_NAME
 from api.v1.routers import quotes, roles, users
+from api.v1.schemas.discord import AuthorizeBody
 from api.v1.tasks.main import _authorize
 from config.main import tags_metadata
 from database.main import DatabaseHandler
@@ -19,6 +20,7 @@ dc_handler = DiscordOAuthHandler()
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -32,7 +34,7 @@ router = APIRouter(prefix="/v1")
     response_model=str,
 )
 def authorize(
-    code: str = Form(..., description="Authorization code received from Discord", example="1234567890"),
+    payload: AuthorizeBody,
     session: Session = Depends(db.get_session),
 ):
     """
@@ -40,7 +42,7 @@ def authorize(
 
     :return: JWT token
     """
-    return _authorize(code, session)
+    return _authorize(payload.code, session)
 
 
 # Include routers

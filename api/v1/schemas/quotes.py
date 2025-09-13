@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 from humps import camel
 from pydantic import BaseModel, Field
 
 from api.v1.models.models import Quote, User
+from api.v1.schemas.discord import TokenBase
 
 
 def to_camel(string):
@@ -90,7 +91,7 @@ class QuoteCommentSchema(Base):
 
 
 class QuoteReactionSchema(Base):
-    reaction_name: str = Field(
+    reaction_name: Literal["red-heart", "thumbs-up", "face-with-tears-of-joy", "melting-face", "skull"] = Field(
         default=...,
         description="The reaction name",
     )
@@ -107,3 +108,18 @@ class SavedQuoteSchema(Base):
     )
     quote: Union[Quote, None] = None
     user: Union[User, None] = None
+
+class CreateQuoteBody(TokenBase):
+    quote: str = Field(default=..., description="The quote markdown text"),
+    send_webhook: bool = Field(
+        default=False, description="Send the quote to the Discord webhooks?"
+    ),
+    
+class CreateQuoteCommentBody(TokenBase):
+    comment: str = Field(default=..., description="Comment's text"),
+    
+class ToggleQuoteReactionBody(TokenBase):
+    reaction_name: Literal["red-heart", "thumbs-up", "face-with-tears-of-joy", "melting-face", "skull"] = Field(
+        default=..., 
+        description="The reaction name"
+    ),

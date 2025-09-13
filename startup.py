@@ -9,6 +9,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "api.v1.main:app",
         port=3560,
-        reload=True,
+        workers=9,
         access_log="uvicorn_access.log",
     )

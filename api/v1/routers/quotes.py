@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Form, Query
 from sqlmodel import Session
 
 from api.v1.models.models import QuoteComment, QuoteReaction
-from api.v1.schemas.quotes import QuoteCommentSchema, QuoteSchema, SavedQuoteSchema
+from api.v1.schemas.discord import TokenBase
+from api.v1.schemas.quotes import CreateQuoteBody, CreateQuoteCommentBody, QuoteCommentSchema, QuoteSchema, SavedQuoteSchema, ToggleQuoteReactionBody
 from api.v1.tasks.quotes import (
     _get_quotes,
     _create_quote,
@@ -53,13 +54,10 @@ def get_quotes(
     "/create", response_model=QuoteSchema
 )
 def create_quote(
-    quote: str = Form(..., description="The quote markdown text"),
-    token: str = Form(..., description="The JWT token from the current user"),
-    send_webhook: bool = Form(
-        default=False, description="Send the quote to the Discord webhook"
-    ),
-    session: Session = Depends(db.get_session), ):
-    return _create_quote(quote, token, send_webhook, session)
+    payload: CreateQuoteBody,
+    session: Session = Depends(db.get_session),
+):
+    return _create_quote(payload.quote, payload.token, payload.send_webhook, session)
 
 
 @router.get(
@@ -91,10 +89,10 @@ def get_quote(
 )
 def delete_quote(
     id: int,
-    token: str = Form(..., description="The JWT token from the current user"),
+    payload: TokenBase,
     session: Session = Depends(db.get_session)
 ):
-    return _delete_quote(id, token, session)
+    return _delete_quote(id, payload.token, session)
 
 
 @router.get(
@@ -132,11 +130,10 @@ def get_quote_comments(
 )
 def create_quote_comment(
     id: int,
-    comment: str = Form(..., description="Comment's text"),
-    token: str = Form(..., description="The JWT token from the current user"),
+    payload: CreateQuoteCommentBody,
     session: Session = Depends(db.get_session)
 ):
-    return _create_quote_comment(id, comment, token, session)
+    return _create_quote_comment(id, payload.comment, payload.token, session)
 
 
 @router.post(
@@ -144,13 +141,10 @@ def create_quote_comment(
 )
 def quote_toggle_react(
     id: int,
-    reaction_name: Literal["red-heart", "thumbs-up", "face-with-tears-of-joy", "melting-face", "skull"] = Form(
-        ..., description="The reaction name"
-    ),
-    token: str = Form(..., description="The JWT token from the current user"),
+    payload: ToggleQuoteReactionBody,
     session: Session = Depends(db.get_session)
 ):
-    return _quote_toggle_react(id, reaction_name, token, session)
+    return _quote_toggle_react(id, payload.reaction_name, payload.token, session)
 
 
 @router.post(
@@ -158,7 +152,7 @@ def quote_toggle_react(
 )
 def quote_toggle_save(
     id: int,
-    token: str = Form(..., description="The JWT token from the current user"),
+    payload: TokenBase,
     session: Session = Depends(db.get_session)
 ):
-    return _quote_toggle_save(id, token, session)
+    return _quote_toggle_save(id, payload.token, session)
