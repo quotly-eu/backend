@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from humps import camel
 from sqlmodel import Field, Relationship, SQLModel
@@ -120,7 +120,7 @@ class QuoteReaction(Base, table=True):
         description="The quote identifier",
         foreign_key="quotes.quote_id",
     )
-    reaction_name: str = Field(
+    reaction_name: Literal["red-heart", "thumbs-up", "face-with-tears-of-joy", "melting-face", "skull"] = Field(
         default=...,
         description="The reaction name",
     )
